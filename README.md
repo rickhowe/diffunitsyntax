@@ -16,12 +16,12 @@ This syntax plugin does:
 * split each line to a list of diff units, based on the `DiffUnit`
   buffer-local or global variable
 * compare them and find the changed and added units, using a builtin `diff()`
-  function or a plugin specific function along with the 'diffopt' option
+  function or a plugin specific function along with the `diffopt` option
 * show those units in single or several background-colored syntax highlights,
   based on the `DiffColors` buffer-local or global variable
 
 In addition to those diff formats, if the file extension is ".diff" or the
-'syntax' option is set to "diff", this syntax plugin identifies a file
+`syntax` option is set to "diff", this syntax plugin identifies a file
 including **git conflict markers** and shows the diff units like this:
 
 ![gitconflict](gitconflict.png)
