@@ -11,14 +11,14 @@ For example, a diff file in unified format will be shown like this:
 
 This syntax plugin does:
 * identify either of unified, context, or normal "ed" style diff format, which
-  can be provided by some program like "diff" and "git diff"
+  can be provided by some program like **diff** and **git diff** commands
 * find corresponding changed lines to be compared
 * split each line to a list of diff units, based on the `DiffUnit`
-  buffer-specific or global variable
+  buffer-local or global variable
 * compare them and find the changed and added units, using a builtin `diff()`
   function or a plugin specific function along with the 'diffopt' option
 * show those units in single or several background-colored syntax highlights,
-  based on the `DiffColors` buffer-specific or global variable
+  based on the `DiffColors` buffer-local or global variable
 
 In addition to those diff formats, if the file extension is ".diff" or the
 'syntax' option is set to "diff", this syntax plugin identifies a file

@@ -1,7 +1,7 @@
 " diffunitsyntax: Highlight word or character based diff units in diff format
 "
-" Last Change: 2024/09/07
-" Version:     1.0
+" Last Change: 2024/09/21
+" Version:     1.1
 " Author:      Rick Howe (Takumi Ohtani) <rdcxy754@ybb.ne.jp>
 " Copyright:   (c) 2024 Rick Howe
 " License:     MIT
