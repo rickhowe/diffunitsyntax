@@ -1,7 +1,7 @@
 " diffunitsyntax: Highlight word or character based diff units in diff format
 "
-" Last Change: 2024/09/21
-" Version:     1.1
+" Last Change: 2024/10/03
+" Version:     1.2
 " Author:      Rick Howe (Takumi Ohtani) <rdcxy754@ybb.ne.jp>
 " Copyright:   (c) 2024 Rick Howe
 " License:     MIT
@@ -11,6 +11,7 @@ set cpo&vim
 
 let s:dus = 'diffunitsyntax'
 let s:dbn = []
+let s:dhg = {}
 let s:dev = ['ColorScheme', 'TextChanged', 'BufDelete']
 call execute(['augroup ' . s:dus, 'autocmd!',
               \'autocmd! ColorScheme * call s:HandleEvent(0)', 'augroup END'])
@@ -18,6 +19,7 @@ call execute(['augroup ' . s:dus, 'autocmd!',
 function! s:HandleEvent(en) abort
   let ev = s:dev[a:en]
   if ev == 'ColorScheme'
+    let s:dhg = {}
     for bn in s:dbn
       if buflisted(bn)
         call setbufvar(bn, '&syntax', getbufvar(bn, '&syntax'))
@@ -52,26 +54,38 @@ function! diffunitsyntax#DiffUnitSyntax() abort
   " find a list of corresponding lines to be compared
   let cc = #{1: [], 2: []} | let dd = #{1: [], 2: []}
   if df == 'unified'
-    for ln in range(1, line('$') + 1)
+    let ln = 1
+    while ln <= line('$') + 1
       let tx = getline(ln)
-      if tx[:3] != '--- ' && tx[:3] != '+++ '
-        if tx[0] == '-' | let dd[1] += [ln]
-        elseif tx[0] == '+' | let dd[2] += [ln]
+      if tx[0] == '-'
+        if tx[:3] == '--- ' && getline(ln + 1)[:3] == '+++ ' &&
+                                                    \getline(ln + 2)[0] == '@'
+          let ln += 2
         else
-          if !empty(dd[1]) && !empty(dd[2])
-            for ix in [1, 2] | let cc[ix] += [dd[ix]] | endfor
-          endif
-          let dd = #{1: [], 2: []}
+          let dd[1] += [ln]
         endif
+      elseif tx[0] == '+' | let dd[2] += [ln]
+      else
+        if !empty(dd[1]) && !empty(dd[2])
+          for ix in [1, 2] | let cc[ix] += [dd[ix]] | endfor
+        endif
+        let dd = #{1: [], 2: []}
       endif
-    endfor
+      let ln += 1
+    endwhile
     let sc = 1
   elseif df == 'context'
     let dx = 0
-    for ln in range(1, line('$') + 1)
+    let ln = 1
+    while ln <= line('$') + 1
       let tx = getline(ln)
-      if tx =~ '^\*\*\* \d' | let dx = 1
-      elseif tx =~ '^--- \d' | let dx = 2
+      if tx[:3] == '*** '
+        if getline(ln + 1)[:3] == '--- ' && getline(ln + 2)[:3] == '****'
+          let ln += 2
+        else
+          let dx = 1
+        endif
+      elseif tx[:3] == '--- ' | let dx = 2
       elseif 0 < dx
         if tx[0] == '!' | let dd[dx] += [ln]
         else
@@ -81,7 +95,8 @@ function! diffunitsyntax#DiffUnitSyntax() abort
           let dd = #{1: [], 2: []}
         endif
       endif
-    endfor
+      let ln += 1
+    endwhile
     let sc = 2
   elseif df == 'normal'
     for ln in range(1, line('$') + 1)
@@ -100,15 +115,13 @@ function! diffunitsyntax#DiffUnitSyntax() abort
     let dx = 0
     for ln in range(1, line('$') + 1)
       let tx = getline(ln)
-      if dx == 0 && tx =~ '^<<<<<<<' | let [dx, ig] = [1, 0]
-      elseif dx == 1 && tx =~ '^=======' | let [dx, ig] = [2, 0]
-      elseif dx == 2 && tx =~ '^>>>>>>>'
+      if dx == 0 && tx[:6] == '<<<<<<<' | let dx = 1
+      elseif dx == 1 && tx[:6] == '=======' | let dx = 2
+      elseif dx == 2 && tx[:6] == '>>>>>>>'
         for ix in [1, 2] | let cc[ix] += [dd[ix]] | let dd[ix] = [] | endfor
         let dx = 0
       elseif 0 < dx
-        if tx =~ '^|||||||' | let ig = 1
-        elseif ig == 0 | let dd[dx] += [ln]
-        endif
+        let dd[dx] += [ln]
       endif
     endfor
     let sc = 0
@@ -148,9 +161,9 @@ function! diffunitsyntax#DiffUnitSyntax() abort
     endfor
   endfor
   " get a list of highlights to be used for changed/added units
-  let hg = #{c: ['DiffChange'], a: ['DiffAdd']}
-  if 0 < get(b:, 'DiffColors', get(g:, 'DiffColors', 1))
-    let bx = map(hg.c + hg.a, 'synIDattr(hlID(v:val), "bg#")')
+  if empty(s:dhg)
+    let s:dhg = #{c: ['DiffChange'], a: ['DiffAdd']}
+    let bx = map(s:dhg.c + s:dhg.a, 'synIDattr(hlID(v:val), "bg#")')
     let hl = 'diffNormal'
     for fb in ['fg', 'bg']
       for cg in ['cterm', 'gui']
@@ -170,7 +183,7 @@ function! diffunitsyntax#DiffUnitSyntax() abort
             \empty(filter(['bold', 'underline', 'undercurl', 'strikethrough',
                                 \'reverse', 'inverse', 'italic', 'standout'],
                                             \'!empty(synIDattr(id, v:val))'))
-          let hg.c += [hl] | let bx += [bg]
+          let s:dhg.c += [hl] | let bx += [bg]
         endif
       endif
       let id += 1
@@ -179,23 +192,23 @@ function! diffunitsyntax#DiffUnitSyntax() abort
   " assign highlight to each changed/added unit
   let hp = #{}
   for hx in ['c', 'a']
+    let hn = (0 < get(b:, 'DiffColors', get(g:, 'DiffColors', 1))) ?
+                                                          \len(s:dhg[hx]) : 1
     for ix in range(len(ca[hx]))
-      let hn = hg[hx][ix % len(hg[hx])]
-      if !has_key(hp, hn) | let hp[hn] = [] | endif
-      let hp[hn] += ca[hx][ix]
+      let hl = s:dhg[hx][ix % hn]
+      if !has_key(hp, hl) | let hp[hl] = [] | endif
+      let hp[hl] += ca[hx][ix]
     endfor
   endfor
   " link highlight and set syntax for each changed/added unit
+  let cz = (0 < sc) ? ' contained' : ''
   for [hl, lc] in items(hp)
     if !empty(lc)
-      " need different highlights for col=1 and 1<col when syntax=git, why?
-      let [hz0, hz1] = ['diff' . hl . '0', 'diff' . hl . '1']
-      call execute('highlight default link ' . hz0 . ' ' . hl)
-      call execute('highlight default link ' . hz1 . ' ' . hl)
+      let hz = 'diff' . hl
+      call execute('highlight default link ' . hz . ' ' . hl)
       for [l, c, b] in lc
-        let [hz, cx] = (c == 0 && 0 < sc) ? [hz0, ' contained'] : [hz1, '']
         call execute('syntax match ' . hz . ' /\%' . l . 'l' .
-            \'\%>' . c . 'c.\+\%<' . (c + b + 2) . 'c/ containedin=ALL' . cx)
+            \'\%>' . c . 'c.\+\%<' . (c + b + 2) . 'c/ containedin=ALL' . cz)
       endfor
     endif
   endfor

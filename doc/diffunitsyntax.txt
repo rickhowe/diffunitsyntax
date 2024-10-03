@@ -1,7 +1,7 @@
 *diffunitsyntax.txt* Highlight word or character based diff units in diff format
 
-Last Change: 2024/09/21
-Version:     1.1
+Last Change: 2024/10/03
+Version:     1.2
 Author:      Rick Howe (Takumi Ohtani) <rdcxy754@ybb.ne.jp>
 Copyright:   (c) 2024 Rick Howe
 License:     MIT
@@ -15,19 +15,17 @@ and added diff units on word or character basis.
 For example, a diff file in unified format will be shown like this:
 
     diff --git a/30a.txt b/30b.txt
-    index 080e279..52efffc 100644
+    index 1f2ff6e..66d5f9f 100644
     --- a/30a.txt
     +++ b/30b.txt
-    @@ -1,6 +1,6 @@
-    `-`Last Change: 2024 `Apr` `17`
-    `-`Version: `8`.3.`49`
-    `+`Last Change: 2024 `Aug` `09`
-    `+`Version: `10`.3.`25`
+    @@ -1,5 +1,5 @@
      example1:
-    `-`The `quick brown` fox jumps over the `lazy` dog.
-    `+`The `lazy` fox jumps over the `quick brown` dog.
+    `-`apple kiwi |grape| banana `mango` orange pear
+    `+`apple kiwi banana `lemon` orange |peach| pear
      example2:
+    `-`The `quick brown` fox jumps over the `lazy` dog.
     `-`The `2020` Olympic Games were held in `Tokyo`.
+    `+`The `lazy` fox jumps over the `quick brown` dog.
     `+`The `2024` Olympic Games were held in `Paris`.
 
 This syntax plugin does:
@@ -46,18 +44,16 @@ In addition to those diff formats, if the file extension is ".diff" or the
 including `git conflict markers` and shows the diff units like this:
 
     <<<<<<< HEAD
-    Last Change: 2024 `Apr` `17`
-    Version: `8`.3.`49`
     example1:
-    The `quick brown` fox jumps over the `lazy` dog.
+    apple kiwi |grape| banana `mango` orange pear
     example2:
+    The `quick brown` fox jumps over the `lazy` dog.
     The `2020` Olympic Games were held in `Tokyo`.
     =======
-    Last Change: 2024 `Aug` `09`
-    Version: `10`.3.`25`
     example1:
-    The `lazy` fox jumps over the `quick brown` dog.
+    apple kiwi banana `lemon` orange |peach| pear
     example2:
+    The `lazy` fox jumps over the `quick brown` dog.
     The `2024` Olympic Games were held in `Paris`.
     >>>>>>> branch
 
@@ -85,6 +81,9 @@ OPTIONS                                                *diffunitsyntax-options*
 
 -----------------------------------------------------------------------------
 CHANGE HISTORY                                         *diffunitsyntax-history*
+
+Version : 1.2
+* Made it faster to find corresponding changed lines to be compared.
 
 Version : 1.1
 * Implemented to check the TextChanged and ColorScheme events to dynamically
