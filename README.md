@@ -3,7 +3,9 @@
 ### Highlight word or character based diff units in diff format
 
 This plugin is an additional vim syntax for diff format and highlights changed
-and added diff units on word or character basis.
+and added diff units on word or character basis to make it possible to see the
+actual inline differences. It should work well on a git wrapper plugin such as
+[vim-fugitive](https://github.com/tpope/vim-fugitive).
 
 For example, a diff file in unified format will be shown like this:
 

@@ -16,10 +16,12 @@ function! diffutil#DiffOpt() abort
       let op[vo] = v:true
     endif
   endfor
-  let vo = 'algorithm'
-  if &diffopt =~ '\<' . vo . '\>'
-    let op[vo] = matchstr(&diffopt, vo . ':\zs\w\+\ze')
-  endif
+  for vo in ['algorithm', 'linematch']
+    if &diffopt =~ '\<' . vo . '\>'
+      let op[vo] = matchstr(&diffopt, vo . ':\zs\w\+\ze')
+      if op[vo] =~ '^\d\+$' | let op[vo] = str2nr(op[vo]) | endif
+    endif
+  endfor
   return op
 endfunction
 
