@@ -1,7 +1,7 @@
 *diffunitsyntax.txt* Highlight word or character based diff units in diff format
 
-Last Change: 2024/10/11
-Version:     1.3
+Last Change: 2024/10/21
+Version:     2.0
 Author:      Rick Howe (Takumi Ohtani) <rdcxy754@ybb.ne.jp>
 Copyright:   (c) 2024 Rick Howe
 License:     MIT
@@ -9,10 +9,10 @@ License:     MIT
 -----------------------------------------------------------------------------
 INTRODUCTION                                           *diffunitsyntax*
 
-This plugin is an additional vim syntax for diff format and highlights changed
-and added diff units on word or character basis to make it possible to see the
-actual inline differences. It should work well on a git wrapper plugin such as
-|vim-fugitive|.
+This plugin is an additional vim syntax for diff format and highlights
+changed/added/deleted diff units on word or character basis, to make it
+possible to see the actual inline differences. It should work well on a git
+wrapper plugin such as |vim-fugitive| and |vim-signify|.
 
 For example, a diff file in unified format will be shown like this:
 
@@ -36,15 +36,18 @@ This syntax plugin does:
 - find corresponding changed lines to be compared
 - split each line to a list of diff units, based on the |DiffUnit|
   buffer-local or global variable
-- compare them and find the changed and added units, using a builtin |diff()|
-  function or a plugin specific function along with the 'diffopt' option
+- compare them and find the changed/added/deleted diff units, using a builtin
+  |diff()| function or a plugin specific function along with the 'diffopt'
+  option
 - show those units in single or several background-colored syntax highlights,
   based on the |DiffColors| buffer-local or global variable
 
-In addition to those diff formats, if the file extension is ".diff" or the
-'syntax' option is set to "diff", this syntax plugin identifies a file
-including `git conflict markers` and shows the diff units like this:
+In addition to those standard diff formats, if the file extension is ".diff"
+or the 'syntax' option is set to "diff", this syntax plugin identifies a file
+including `git conflict markers` and `diff indicators ('-'/'+' and '<'/'>')`,
+and then shows the diff units like this:
 
+    `git conflict markers`:
     <<<<<<< HEAD
     example1:
     apple kiwi |grape| banana `mango` orange pear
@@ -58,6 +61,16 @@ including `git conflict markers` and shows the diff units like this:
     The `lazy` fox jumps over the `quick brown` dog.
     The `2024` Olympic Games were held in `Paris`.
     >>>>>>> branch
+
+    `diff indicators`:
+     example1:
+    -apple kiwi |grape| banana `mango` orange pear
+    +apple kiwi banana `lemon` orange |peach| pear
+     example2:
+    <The `quick brown` fox jumps over the `lazy` dog.
+    <The `2020` Olympic Games were held in `Tokyo`.
+    >The `lazy` fox jumps over the `quick brown` dog.
+    >The `2024` Olympic Games were held in `Paris`.
 
 -----------------------------------------------------------------------------
 OPTIONS                                                *diffunitsyntax-options*
@@ -83,6 +96,11 @@ OPTIONS                                                *diffunitsyntax-options*
 
 -----------------------------------------------------------------------------
 CHANGE HISTORY                                         *diffunitsyntax-history*
+
+Version : 2.0
+* Added to identify a file including diff indicators as one of diff formats.
+* Added to check a change of the 'diffopt' option to dynamically update and
+  redraw diff units.
 
 Version : 1.3
 * Improved to show the previous and next character of a deleted diff unit in

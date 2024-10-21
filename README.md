@@ -2,10 +2,11 @@
 
 ### Highlight word or character based diff units in diff format
 
-This plugin is an additional vim syntax for diff format and highlights changed
-and added diff units on word or character basis to make it possible to see the
-actual inline differences. It should work well on a git wrapper plugin such as
-[vim-fugitive](https://github.com/tpope/vim-fugitive).
+This plugin is an additional vim syntax for diff format and highlights
+changed/added/deleted diff units on word or character basis, to make it
+possible to see the actual inline differences. It should work well on a git
+wrapper plugin such as [vim-fugitive](https://github.com/tpope/vim-fugitive) and
+[vim-signify](https://github.com/mhinz/vim-signify).
 
 For example, a diff file in unified format will be shown like this:
 
@@ -17,16 +18,22 @@ This syntax plugin does:
 * find corresponding changed lines to be compared
 * split each line to a list of diff units, based on the `DiffUnit`
   buffer-local or global variable
-* compare them and find the changed and added units, using a builtin `diff()`
-  function or a plugin specific function along with the `diffopt` option
+* compare them and find the changed/added/deleted units, using a builtin
+  `diff()` function or a plugin specific function along with the `diffopt`
+  option
 * show those units in single or several background-colored syntax highlights,
   based on the `DiffColors` buffer-local or global variable
 
-In addition to those diff formats, if the file extension is ".diff" or the
-`syntax` option is set to "diff", this syntax plugin identifies a file
-including **git conflict markers** and shows the diff units like this:
+In addition to those standard diff formats, if the file extension is ".diff"
+or the `syntax` option is set to "diff", this syntax plugin identifies a file
+including **git conflict markers** and **diff indicators (`-`/`+` and `<`/`>`)**,
+and then shows the diff units like this:
 
+git conflict markers:<br>
 ![gitconflict](gitconflict.png)
+
+diff indicators:<br>
+![diffindicator](diffindicator.png)
 
 #### Options
 
