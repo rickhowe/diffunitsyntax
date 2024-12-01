@@ -1,3 +1,11 @@
+" diffunitsyntax: Highlight word or character based diff units in diff format
+"
+" Last Change: 2024/12/01
+" Version:     3.0
+" Author:      Rick Howe (Takumi Ohtani) <rdcxy754@ybb.ne.jp>
+" Copyright:   (c) 2024 Rick Howe
+" License:     MIT
+
 let s:save_cpo = &cpoptions
 set cpo&vim
 
@@ -29,13 +37,18 @@ if has('nvim') ? (type(luaeval('vim.diff')) == v:t_func) :
                                   \(exists('*diff') && has('patch-9.1.0099'))
 
 function! diffutil#DiffFunc(u1, u2, op) abort
-  let ic = s:BuiltinDiff(a:u1, a:u2, a:op)
+  let [n1, n2] = [len(a:u1), len(a:u2)]
+  if a:u1 ==# a:u2 | let ic = []
+  elseif n1 == 0 | let ic = [[0, 0, 0, n2]]
+  elseif n2 == 0 | let ic = [[0, n1, 0, 0]]
+  else | let ic = s:BuiltinDiff(a:u1, a:u2, a:op)
+  endif
   if s:IndexCount
     return ic
   else
     let es = ''
     let p1 = 0
-    for [i1, c1, i2, c2] in ic + [[len(a:u1), 0, 0, 0]]
+    for [i1, c1, i2, c2] in ic + [[n1, 0, 0, 0]]
       let es .= repeat('=', i1 - p1) . repeat('-', c1) . repeat('+', c2)
       let p1 = i1 + c1
     endfor

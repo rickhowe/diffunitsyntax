@@ -1,7 +1,7 @@
 *diffunitsyntax.txt* Highlight word or character based diff units in diff format
 
-Last Change: 2024/10/21
-Version:     2.0
+Last Change: 2024/12/01
+Version:     3.0
 Author:      Rick Howe (Takumi Ohtani) <rdcxy754@ybb.ne.jp>
 Copyright:   (c) 2024 Rick Howe
 License:     MIT
@@ -9,12 +9,14 @@ License:     MIT
 -----------------------------------------------------------------------------
 INTRODUCTION                                           *diffunitsyntax*
 
-This plugin is an additional vim syntax for diff format and highlights
-changed/added/deleted diff units on word or character basis, to make it
-possible to see the actual inline differences. It should work well on a git
-wrapper plugin such as |vim-fugitive| and |vim-signify|.
+This plugin finds and highlights word or character based changed/added/deleted
+diff units in a diff format, to make it possible to see the actual differences
+within a line. This plugin not only works as an additional vim syntax for diff
+format but also applies the intra-line diff unit highlighting on some popular
+git-related plugins.
 
-For example, a diff file in unified format will be shown like this:
+When a file name extension is ".diff" or the 'syntax' option is set to "diff",
+a diff file in unified format will be shown like this:
 
     diff --git a/30a.txt b/30b.txt
     index 1f2ff6e..66d5f9f 100644
@@ -30,47 +32,43 @@ For example, a diff file in unified format will be shown like this:
     `+`The `lazy` fox jumps over the `quick brown` dog.
     `+`The `2024` Olympic Games were held in `Paris`.
 
-This syntax plugin does:
+This plugin does:
 - identify either of unified, context, or normal "ed" style diff format, which
   can be provided by some program like `diff` and `git diff` commands
-- find corresponding changed lines to be compared
+- find a pair of corresponding changed lines to be compared in a buffer
 - split each line to a list of diff units, based on the |DiffUnit|
   buffer-local or global variable
 - compare them and find the changed/added/deleted diff units, using a builtin
   |diff()| function or a plugin specific function along with the 'diffopt'
   option
-- show those units in single or several background-colored syntax highlights,
-  based on the |DiffColors| buffer-local or global variable
+- highlight those diff units according to syntax, text property, or extended
+  mark mechanism applied on the buffer, using single or several
+  background-colored highlight groups, based on the |DiffColors| buffer-local
+  or global variable
 
-In addition to those standard diff formats, if the file extension is ".diff"
-or the 'syntax' option is set to "diff", this syntax plugin identifies a file
+In addition to those standard diff formats, this plugin identifies a file
 including `git conflict markers` and `diff indicators ('-'/'+' and '<'/'>')`,
-and then shows the diff units like this:
+and then shows the diff units.
 
-    `git conflict markers`:
-    <<<<<<< HEAD
-    example1:
-    apple kiwi |grape| banana `mango` orange pear
-    example2:
-    The `quick brown` fox jumps over the `lazy` dog.
-    The `2020` Olympic Games were held in `Tokyo`.
-    =======
-    example1:
-    apple kiwi banana `lemon` orange |peach| pear
-    example2:
-    The `lazy` fox jumps over the `quick brown` dog.
-    The `2024` Olympic Games were held in `Paris`.
-    >>>>>>> branch
+Diff unit highlighting on plugins
 
-    `diff indicators`:
-     example1:
-    -apple kiwi |grape| banana `mango` orange pear
-    +apple kiwi banana `lemon` orange |peach| pear
-     example2:
-    <The `quick brown` fox jumps over the `lazy` dog.
-    <The `2020` Olympic Games were held in `Tokyo`.
-    >The `lazy` fox jumps over the `quick brown` dog.
-    >The `2024` Olympic Games were held in `Paris`.
+In some popular git-related plugins, to show 'git diff' output and to preview
+a diff hunk in normal, preview, and popup/floating windows, another
+highlighting mechanism such as text property or extended mark is used instead
+of diff syntax. This plugin applies the intra-line diff unit highlighting and
+show actual differences on them, based on the |DiffUnitSyntax| buffer-local or
+global variable, on the following plugins (you are welcome to introduce more
+plugins to cover!):
+
+In normal window:
+|vim-fugitive|
+|neogit.nvim|
+|vim-gin|
+
+In preview and popup/floating windows:
+|gitsigns.nvim|
+|vim-gitgutter|
+|vim-siginify|
 
 -----------------------------------------------------------------------------
 OPTIONS                                                *diffunitsyntax-options*
@@ -90,12 +88,17 @@ OPTIONS                                                *diffunitsyntax-options*
     1 : |hl-DiffChange| + several highlight groups (default)
 
 |b:DiffUnitSyntax|, |g:DiffUnitSyntax|
-    Enable or disable this syntax plugin
+    Disable this plugin or apply diff unit highlighting
     0 : disable
-    1 : enable (default)
+    1 : enable in normal window (default)
+    2 : enable in normal, preview, and popup/floating windows
 
 -----------------------------------------------------------------------------
 CHANGE HISTORY                                         *diffunitsyntax-history*
+
+Version : 3.0
+* Made it possible to apply diff unit highlighting on several git-related
+  plugins, based on the |DiffUnitSyntax| variable
 
 Version : 2.0
 * Added to identify a file including diff indicators as one of diff formats.
