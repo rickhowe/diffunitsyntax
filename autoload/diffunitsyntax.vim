@@ -1,9 +1,9 @@
 " diffunitsyntax: Highlight word or character based diff units in diff format
 "
-" Last Change: 2024/12/01
-" Version:     3.0
+" Last Change: 2025/07/15
+" Version:     3.1
 " Author:      Rick Howe (Takumi Ohtani) <rdcxy754@ybb.ne.jp>
-" Copyright:   (c) 2024 Rick Howe
+" Copyright:   (c) 2024-2025 Rick Howe
 " License:     MIT
 
 let s:save_cpo = &cpoptions
@@ -35,9 +35,33 @@ function! s:FindDiffUnitPos(du) abort
     if 0 < search(pt, 'nw', '', 100) | let ok = 1 | break | endif
   endfor
   if ok
+    let op = diffutil#DiffOpt()
     let dp.u = a:du | let dp.l = [] | let dp.p = {}
     " find a list of corresponding lines to be compared
     let [cl, oc] = call('s:' . df, [])
+    " follow linematch to align corresponding lines
+    if has_key(op, 'linematch')
+      let [z1, z2] = [[], []]
+      for cx in range(min([len(cl[1]), len(cl[2])]))
+        let [r1, r2] = [cl[1][cx], cl[2][cx]]
+        if 1 < len(r1) || 1 < len(r2)
+          let [t1, t2] = [[], []]
+          for [tx, rx] in [[t1, r1], [t2, r2]]
+            let tx += map(getline(rx[0], rx[-1]), 'v:val[oc:]')
+          endfor
+          for [i1, n1, i2, n2] in diffutil#DiffFunc(t1, t2, op)
+            if 0 < n1 && 0 < n2
+              for [zx, rx, ix, nx] in [[z1, r1, i1, n1], [z2, r2, i2, n2]]
+                let zx += [rx[ix : ix + nx - 1]]
+              endfor
+            endif
+          endfor
+        else
+          let [z1, z2] += [[r1], [r2]]
+        endif
+      endfor
+      let [cl[1], cl[2]] = [z1, z2]
+    endif
     " set a pair of diff line
     let dl = []
     for cx in range(min([len(cl[1]), len(cl[2])]))
@@ -51,12 +75,11 @@ function! s:FindDiffUnitPos(du) abort
         \(a:du == 'Word2' || a:du ==# 'WORD') ? '\%(\s\+\|\S\+\)\zs' :
         \(a:du == 'Word3' || a:du ==# 'word') ? '\<\|\>' : '\%(\w\+\|\W\)\zs'
     " compare line and find line/column/count for each unit
-    let op = diffutil#DiffOpt()
     for [l1, l2] in dl
       let dp.l += [l1, l2]
       let pv = #{c: (0 < oc) ? [[l1, 1, 1], [l2, 1, 1]] : [], a: [], d: []}
       let [u1, u2] =
-                \[split(getline(l1)[oc:], up), split(getline(l2)[oc:], up)]
+                  \[split(getline(l1)[oc:], up), split(getline(l2)[oc:], up)]
       for [i1, n1, i2, n2] in diffutil#DiffFunc(u1, u2, op)
         let hx = (0 < n1 && 0 < n2) ? 'c' : 'a'
         for [ux, lx, ix, nx] in [[u1, l1, i1, n1], [u2, l2, i2, n2]]
@@ -84,15 +107,19 @@ endfunction
 function! s:ShowDiffUnit(dp) abort
   " link highlight and set syntax for each unit
   if empty(a:dp) || empty(a:dp.p) | return | endif
-  let hp = {}
-  for hx in keys(s:dhl)
-    let hn = (0 < get(b:, 'DiffColors', get(g:, 'DiffColors', 1))) ?
+  let hp = []
+  for hx in ['d', 'a', 'c']     " 'd' first not to overwrite 'a' and 'c'
+    if has_key(s:dhl, hx)
+      let hq = {}
+      let hn = (0 < get(b:, 'DiffColors', get(g:, 'DiffColors', 1))) ?
                                                           \len(s:dhl[hx]) : 1
-    if has_key(a:dp.p, hx)
-      for ix in range(len(a:dp.p[hx]))
-        let hl = s:dhl[hx][ix % hn]
-        let hp[hl] = (has_key(hp, hl) ? hp[hl] : []) + a:dp.p[hx][ix]
-      endfor
+      if has_key(a:dp.p, hx)
+        for ix in range(len(a:dp.p[hx]))
+          let hl = s:dhl[hx][ix % hn]
+          let hq[hl] = (has_key(hq, hl) ? hq[hl] : []) + a:dp.p[hx][ix]
+        endfor
+      endif
+      let hp += items(hq)
     endif
   endfor
   let ln = a:dp.l[0]
@@ -110,7 +137,7 @@ function! s:ShowDiffUnit(dp) abort
     endwhile
     let ct = {}
     for ln in a:dp.l | let ct[ln] = empty(synstack(ln, 1)) | endfor
-    for [hl, lc] in items(hp)
+    for [hl, lc] in hp
       if !empty(lc)
         let hz = s:dus . hl
         call execute('highlight default link ' . hz . ' ' . hl)
@@ -124,16 +151,21 @@ function! s:ShowDiffUnit(dp) abort
   else
     if !has('nvim')
       " textprop highlighting
+      let pz = -1
       for ln in a:dp.l
         for pr in prop_list(ln)
-          if pr.type =~ s:dus | call prop_remove(#{type: pr.type}, ln) | endif
+          if pr.type =~ s:dus
+            call prop_remove(#{type: pr.type}, ln)
+          else
+            let pz = max([pz, prop_type_get(pr.type).priority])
+          endif
         endfor
       endfor
-      for [hl, lc] in items(hp)
+      for [hl, lc] in hp
         if !empty(lc)
           let pt = s:dus . hl
           if empty(prop_type_get(pt))
-            call prop_type_add(pt, #{highlight: hl})
+            call prop_type_add(pt, #{highlight: hl, priority: pz + 1})
           endif
           for [l, c, b] in lc
             call prop_add(l, c, #{type: pt, length: b})
@@ -144,7 +176,7 @@ function! s:ShowDiffUnit(dp) abort
       " extmark highlighting
       let ns = nvim_create_namespace(s:dus)
       call nvim_buf_clear_namespace(0, ns, 0, -1)
-      for [hl, lc] in items(hp)
+      for [hl, lc] in hp
         if !empty(lc)
           for [l, c, b] in lc
             call nvim_buf_set_extmark(0, ns, l - 1, c - 1,

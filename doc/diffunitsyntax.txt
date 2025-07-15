@@ -1,9 +1,9 @@
 *diffunitsyntax.txt* Highlight word or character based diff units in diff format
 
-Last Change: 2024/12/01
-Version:     3.0
+Last Change: 2025/07/15
+Version:     3.1
 Author:      Rick Howe (Takumi Ohtani) <rdcxy754@ybb.ne.jp>
-Copyright:   (c) 2024 Rick Howe
+Copyright:   (c) 2024-2025 Rick Howe
 License:     MIT
 
 -----------------------------------------------------------------------------
@@ -36,6 +36,8 @@ This plugin does:
 - identify either of unified, context, or normal "ed" style diff format, which
   can be provided by some program like `diff` and `git diff` commands
 - find a pair of corresponding changed lines to be compared in a buffer
+- realign them to most similar lines if "linematch" is set in the 'diffopt'
+  option
 - split each line to a list of diff units, based on the |DiffUnit|
   buffer-local or global variable
 - compare them and find the changed/added/deleted diff units, using a builtin
@@ -95,6 +97,10 @@ OPTIONS                                                *diffunitsyntax-options*
 
 -----------------------------------------------------------------------------
 CHANGE HISTORY                                         *diffunitsyntax-history*
+
+Version : 3.1
+* Improved to follow "linematch" and compare between most similar lines if
+  specified in the 'diffopt' option (available on nvim 0.9.0 and later)
 
 Version : 3.0
 * Made it possible to apply diff unit highlighting on several git-related

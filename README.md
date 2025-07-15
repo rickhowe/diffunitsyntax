@@ -17,6 +17,8 @@ This plugin does:
 * identify either of unified, context, or normal "ed" style diff format, which
   can be provided by some program like `diff` and `git diff` commands
 * find a pair of corresponding changed lines to be compared in a buffer
+* realign them to most similar lines if `linematch` is set in the `diffopt`
+  option
 * split each line to a list of diff units, based on the `DiffUnit`
   buffer-local or global variable
 * compare them and find the changed/added/deleted units, using a builtin
@@ -54,45 +56,53 @@ plugins to cover!):
 
 In normal window:
 <details>
-<summary>vim-fugitive</summary>
+<summary>
+vim-fugitive
+<a href="https://github.com/tpope/vim-fugitive">></a>
+</summary>
 
-[vim-fugitive](https://github.com/tpope/vim-fugitive)<br>
 ![fugitive](images/fugitive.png)
 </details>
-
 <details>
-<summary>neogit</summary>
+<summary>
+neogit
+<a href="https://github.com/NeogitOrg/neogit">></a>
+</summary>
 
-[neogit](https://github.com/NeogitOrg/neogit)<br>
 ![neogit](images/neogit.png)
 </details>
-
 <details>
-<summary>vim-gin</summary>
+<summary>
+vim-gin
+<a href="https://github.com/lambdalisue/vim-gin">></a>
+</summary>
 
-[vim-gin](https://github.com/lambdalisue/vim-gin)<br>
 ![gin](images/gin.png)
 </details>
 
 In preview and popup/floating windows:
 <details>
-<summary>gtsigns.nvim</summary>
+<summary>
+gtsigns.nvim
+<a href="https://github.com/lewis6991/gitsigns.nvim">></a>
+</summary>
 
-[gitsigns.nvim](https://github.com/lewis6991/gitsigns.nvim)<br>
 ![gitsigns](images/gitsigns.png)
 </details>
-
 <details>
-<summary>vim-gitgutter</summary>
+<summary>
+vim-gitgutter
+<a href="https://github.com/airblade/vim-gitgutter">></a>
+</summary>
 
-[vim-gitgutter](https://github.com/airblade/vim-gitgutter)<br>
 ![gitgutter](images/gitgutter.png)
 </details>
-
 <details>
-<summary>vim-signify</summary>
+<summary>
+vim-signify
+<a href="https://github.com/mhinz/vim-signify">></a>
+</summary>
 
-[vim-signify](https://github.com/mhinz/vim-signify)<br>
 ![signify](images/signify.png)
 </details>
 

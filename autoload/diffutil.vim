@@ -1,9 +1,9 @@
 " diffunitsyntax: Highlight word or character based diff units in diff format
 "
-" Last Change: 2024/12/01
-" Version:     3.0
+" Last Change: 2025/07/15
+" Version:     3.1
 " Author:      Rick Howe (Takumi Ohtani) <rdcxy754@ybb.ne.jp>
-" Copyright:   (c) 2024 Rick Howe
+" Copyright:   (c) 2024-2025 Rick Howe
 " License:     MIT
 
 let s:save_cpo = &cpoptions
@@ -13,28 +13,36 @@ let s:IndexCount = 1
 
 function! diffutil#DiffOpt() abort
   let op = #{}
-  for [vo, no] in [['icase', 'icase'],
-                  \['iblank', 'ignore_blank_lines'],
-                  \['iwhite', 'ignore_whitespace'],
-                  \['iwhiteall', 'ignore_whitespace_change'],
-                  \['iwhiteeol', 'ignore_whitespace_change_at_eol'],
-                  \['indent-heuristic', 'indent_heuristic']]
-    if &diffopt =~ '\<' . vo . '\>'
-      if has('nvim') | let vo = no | endif
-      let op[vo] = v:true
-    endif
-  endfor
-  for vo in ['algorithm', 'linematch']
-    if &diffopt =~ '\<' . vo . '\>'
-      let op[vo] = matchstr(&diffopt, vo . ':\zs\w\+\ze')
-      if op[vo] =~ '^\d\+$' | let op[vo] = str2nr(op[vo]) | endif
-    endif
+  for [ot, vn] in items(#{b: [['icase', ''],
+                            \['iblank', 'ignore_blank_lines'],
+                            \['iwhiteall', 'ignore_whitespace'],
+                            \['iwhite', 'ignore_whitespace_change'],
+                            \['iwhiteeol', 'ignore_whitespace_change_at_eol'],
+                            \['indent-heuristic', 'indent_heuristic']],
+                          \s: [['algorithm', '']], n: [['linematch', '']]})
+    for [vo, no] in vn
+      if &diffopt =~ '\<' . vo . '\>'
+        if ot == 'b'
+          let op[vo] = v:true
+        else
+          let op[vo] = matchstr(&diffopt, vo . ':\zs\w\+\ze')
+          if ot == 'n'
+            let op[vo] = str2nr(op[vo])
+          endif
+        endif
+        if has('nvim') && !empty(no)
+          let op[no] = op[vo]
+          unlet op[vo]
+        endif
+      endif
+    endfor
   endfor
   return op
 endfunction
 
-if has('nvim') ? (type(luaeval('vim.diff')) == v:t_func) :
-                                  \(exists('*diff') && has('patch-9.1.0099'))
+if get(g:, 'BuiltinDiffFunc', 1) &&
+                      \(has('nvim') ? type(luaeval('vim.diff')) == v:t_func :
+                                    \exists('*diff') && has('patch-9.1.0099'))
 
 function! diffutil#DiffFunc(u1, u2, op) abort
   let [n1, n2] = [len(a:u1), len(a:u2)]

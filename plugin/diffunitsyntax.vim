@@ -1,16 +1,16 @@
 " diffunitsyntax: Highlight word or character based diff units in diff format
 "
-" Last Change: 2024/12/01
-" Version:     3.0
+" Last Change: 2025/07/15
+" Version:     3.1
 " Author:      Rick Howe (Takumi Ohtani) <rdcxy754@ybb.ne.jp>
-" Copyright:   (c) 2024 Rick Howe
+" Copyright:   (c) 2024-2025 Rick Howe
 " License:     MIT
 
 if exists('g:loaded_diffunitsyntax') ||
                         \(!has('nvim') ? v:version < 900 : !has('nvim-0.5.0'))
   finish
 endif
-let g:loaded_diffunitsyntax = 3.0
+let g:loaded_diffunitsyntax = 3.1
 
 let s:save_cpo = &cpoptions
 set cpo&vim
