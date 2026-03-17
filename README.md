@@ -44,7 +44,7 @@ and then shows the diff units.
 ![diffindicator](images/diffindicator.png)
 </details>
 
-#### Diff unit highlighting on plugins
+#### Diff unit highlighting on other plugins
 
 In some popular git-related plugins, to show `git diff` output and to preview
 a diff hunk in normal, preview, and popup/floating windows, another
@@ -54,7 +54,7 @@ show actual differences on them, based on the `DiffUnitSyntax` buffer-local or
 global variable, on the following plugins (you are welcome to introduce more
 plugins to cover!):
 
-In normal window:
+In normal window (when `DiffUnitSyntax` is set to 1):
 <details>
 <summary>
 vim-fugitive
@@ -80,7 +80,7 @@ vim-gin
 ![gin](images/gin.png)
 </details>
 
-In preview and popup/floating windows:
+In preview and popup/floating windows (when `DiffUnitSyntax` is set to 2):
 <details>
 <summary>
 gtsigns.nvim

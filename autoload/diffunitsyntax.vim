@@ -1,9 +1,9 @@
 " diffunitsyntax: Highlight word or character based diff units in diff format
 "
-" Last Change: 2025/07/15
-" Version:     3.1
+" Last Change: 2026/03/17
+" Version:     3.2
 " Author:      Rick Howe (Takumi Ohtani) <rdcxy754@ybb.ne.jp>
-" Copyright:   (c) 2024-2025 Rick Howe
+" Copyright:   (c) 2024-2026 Rick Howe
 " License:     MIT
 
 let s:save_cpo = &cpoptions
@@ -25,20 +25,11 @@ endfunction
 
 function! s:FindDiffUnitPos(du) abort
   let dp = {}
-  " identify diff format
-  let ok = 0
-  for [df, pt] in [['unified', '^@@ -\d\+\(,\d\+\)\= +\d\+\(,\d\+\)\= @@'],
-          \['context', '^\*\*\* \d\+\(,\d\+\)\= \*\*\*\*'],
-          \['normal', '^\d\+\(,\d\+\)\=[acd]\d\+\(,\d\+\)\='],
-          \['gitconflict', '^<\{7}\(.*\n\)\+=\{7}\(.*\n\)\+>\{7}\(.*\n\)\+'],
-          \['diffindicator', '^[-+<>]']]
-    if 0 < search(pt, 'nw', '', 100) | let ok = 1 | break | endif
-  endfor
-  if ok
+  " identify diff format & find a list of corresponding changed lines
+  let [cl, oc] = s:FindChangedLines()
+  if 0 <= oc
     let op = diffutil#DiffOpt()
     let dp.u = a:du | let dp.l = [] | let dp.p = {}
-    " find a list of corresponding lines to be compared
-    let [cl, oc] = call('s:' . df, [])
     " follow linematch to align corresponding lines
     if has_key(op, 'linematch')
       let [z1, z2] = [[], []]
@@ -209,99 +200,79 @@ function! s:CheckDiffUnit(dp) abort
   return 1
 endfunction
 
-function! s:unified() abort
-  let cl = #{1: [], 2: []} | let dl = #{1: [], 2: []}
-  let ln = 1
-  while ln <= line('$') + 1
-    let tx = getline(ln)
-    if tx[0] == '-'
-      if tx[:3] == '--- ' && getline(ln + 1)[:3] == '+++ ' | let ln += 1
-      else | let dl[1] += [ln]
-      endif
-    elseif tx[0] == '+' | let dl[2] += [ln]
-    else
-      if !empty(dl[1]) && !empty(dl[2])
-        for ix in [1, 2] | let cl[ix] += [dl[ix]] | endfor
-      endif
-      let dl = #{1: [], 2: []}
-    endif
-    let ln += 1
-  endwhile
-  return [cl, 1]
-endfunction
-
-function! s:context() abort
-  let cl = #{1: [], 2: []} | let dl = #{1: [], 2: []}
-  let dx = 0
-  let ln = 1
-  while ln <= line('$') + 1
-    let tx = getline(ln)
-    if tx[:3] == '*** '
-      if getline(ln + 1)[:3] == '--- ' | let ln += 1
-      else | let dx = 1
-      endif
-    elseif tx[:3] == '--- ' | let dx = 2
-    elseif 0 < dx
-      if tx[0] == '!' | let dl[dx] += [ln]
-      else
-        for ix in [1, 2]
-          if !empty(dl[ix]) | let cl[ix] += [dl[ix]] | endif
+function! s:FindChangedLines() abort
+  let cl = #{1: [[]], 2: [[]]}
+  for [df, pt, oc] in [
+    \['unified', '^@@ -\d\+\(,\d\+\)\= +\d\+\(,\d\+\)\= @@', 1],
+    \['context', '^\*\{15}.*\n\*\{3} \(.*\n\)\{-1,}-\{3} \(.*\n\)\{-1,}', 2],
+    \['normal', '^\d\+\(,\d\+\)\=[acd]\d\+\(,\d\+\)\=', 2],
+    \['gitconflict', '^<\{7}\(.*\n\)\+=\{7}\(.*\n\)\+>\{7}\(.*\n\)\+', 0],
+    \['diffindicator', '\(^[-<].*\n\)\+\(^[+>].*\n\)\+', 1]]
+    if 0 < search(pt, 'nw', '', 100)
+      if df == 'unified'
+        for ln in range(1, line('$'))
+          let tx = getline(ln)
+          if tx[0] == '-' && tx[:3] != '--- ' | let cl[1][-1] += [ln]
+          elseif tx[0] == '+' && tx[:3] != '+++ ' | let cl[2][-1] += [ln]
+          elseif tx[0] != '\'
+            for ix in [1, 2] | let cl[ix] += [[]] | endfor
+          endif
         endfor
-        let dl = #{1: [], 2: []}
+      elseif df == 'context'
+        let cx = 0
+        for ln in range(1, line('$'))
+          let tx = getline(ln)
+          if tx =~ '^\*\{15}' | let cx = 0
+            for ix in [1, 2]
+              if !empty(cl[ix][-1]) | let cl[ix] += [[]] | endif
+            endfor
+          elseif tx =~ '^\*\{3} \d\+\(,\d\+\)\= \*\{4}' | let cx = 1
+          elseif tx =~ '^-\{3} \d\+\(,\d\+\)\= -\{4}' | let cx = 2
+          elseif tx[0] != '\' && 0 < cx
+            if tx[0] == '!' | let cl[cx][-1] += [ln]
+            elseif !empty(cl[cx][-1]) | let cl[cx] += [[]]
+            endif
+          endif
+        endfor
+      elseif df == 'normal'
+        for ln in range(1, line('$'))
+          let tx = getline(ln)
+          if tx =~ '^\d\+' | for ix in [1, 2] | let cl[ix] += [[]] | endfor
+          elseif tx[0] == '<' | let cl[1][-1] += [ln]
+          elseif tx[0] == '>' | let cl[2][-1] += [ln]
+          endif
+        endfor
+      elseif df == 'gitconflict'
+        let cx = 0
+        for ln in range(1, line('$'))
+          let tx = getline(ln)
+          if cx == 0 && tx[:6] == '<<<<<<<' | let cx = 1
+            for ix in [1, 2] | let cl[ix] += [[]] | endfor
+          elseif cx == 1 && tx[:6] == '=======' | let cx = 2
+          elseif cx == 2 && tx[:6] == '>>>>>>>' | let cx = 0
+          elseif 0 < cx | let cl[cx][-1] += [ln]
+          endif
+        endfor
+      elseif df == 'diffindicator'
+        for ln in range(1, line('$'))
+          let tx = getline(ln)
+          if tx[0] == '-' || tx[0] == '<' | let cl[1][-1] += [ln]
+          elseif tx[0] == '+' || tx[0] == '>' | let cl[2][-1] += [ln]
+          else | for ix in [1, 2] | let cl[ix] += [[]] | endfor
+          endif
+        endfor
       endif
-    endif
-    let ln += 1
-  endwhile
-  return [cl, 2]
-endfunction
-
-function! s:normal() abort
-  let cl = #{1: [], 2: []} | let dl = #{1: [], 2: []}
-  for ln in range(1, line('$') + 1)
-    let tx = getline(ln)
-    if tx[0] == '<' | let dl[1] += [ln]
-    elseif tx[0] == '>' | let dl[2] += [ln]
-    elseif tx[0] != '-'
-      if !empty(dl[1]) && !empty(dl[2])
-        for ix in [1, 2] | let cl[ix] += [dl[ix]] | endfor
-      endif
-      let dl = #{1: [], 2: []}
-    endif
-  endfor
-  return [cl, 2]
-endfunction
-
-function! s:gitconflict() abort
-  let cl = #{1: [], 2: []} | let dl = #{1: [], 2: []}
-  let dx = 0
-  for ln in range(1, line('$') + 1)
-    let tx = getline(ln)
-    if dx == 0 && tx[:6] == '<<<<<<<' | let dx = 1
-    elseif dx == 1 && tx[:6] == '=======' | let dx = 2
-    elseif dx == 2 && tx[:6] == '>>>>>>>'
-      for ix in [1, 2] | let cl[ix] += [dl[ix]] | let dl[ix] = [] | endfor
-      let dx = 0
-    elseif 0 < dx
-      let dl[dx] += [ln]
-    endif
-  endfor
-  return [cl, 0]
-endfunction
-
-function! s:diffindicator() abort
-  let cl = #{1: [], 2: []} | let dl = #{1: [], 2: []}
-  for ln in range(1, line('$') + 1)
-    let tx = getline(ln)
-    if tx[0] == '-' || tx[0] == '<' | let dl[1] += [ln]
-    elseif tx[0] == '+' || tx[0] == '>' | let dl[2] += [ln]
+      for cx in range(len(cl[1]) - 1, 0, -1)
+        if empty(cl[1][cx]) || empty(cl[2][cx])
+          for ix in [1, 2] | unlet cl[ix][cx] | endfor
+        endif
+      endfor
+      break
     else
-      if !empty(dl[1]) && !empty(dl[2])
-        for ix in [1, 2] | let cl[ix] += [dl[ix]] | endfor
-      endif
-      let dl = #{1: [], 2: []}
+      let oc = -1
     endif
   endfor
-  return [cl, 1]
+  return [cl, oc]
 endfunction
 
 let s:dhl = {}
@@ -344,19 +315,22 @@ endfunction
 let s:dev = ['ColorScheme', 'OptionSet', 'TextChanged', 'BufDelete']
 
 function! s:SetEvent() abort
+  let ac = []
   let bz = filter(range(1, bufnr('$')),
             \'bufloaded(v:val) && type(getbufvar(v:val, s:dus)) == type({})')
-  if !empty(bz)
-    let ac = []
-    for en in range(len(s:dev))
-      if s:dev[en] == 'ColorScheme' | let ac += [[en, '*']]
-      elseif s:dev[en] == 'OptionSet' | let ac += [[en, 'diffopt']]
-      else | for bn in bz | let ac += [[en, '<buffer=' . bn . '>']] | endfor
-      endif
-    endfor
-    call execute(map(ac, '"autocmd! " . s:dus . " " . s:dev[v:val[0]] . " " .
-                        \v:val[1] . " call s:HandleEvent(" . v:val[0] . ")"'))
-  endif
+  for ev in s:dev
+    if ev == 'ColorScheme'
+      let ac += [[ev, empty(bz) ? '' : '*']]
+    elseif ev == 'OptionSet'
+      let ac += [[ev, empty(bz) ? '' : 'diffopt']]
+    else
+      let ac += [[ev, '']]
+      for bn in bz | let ac += [[ev, '<buffer=' . bn . '>']] | endfor
+    endif
+  endfor
+  call execute(map(ac, '"autocmd! " . s:dus . " " . v:val[0] .
+                                  \((empty(v:val[1])) ? "" : " " . v:val[1] .
+                    \" call s:HandleEvent(" . index(s:dev, v:val[0]) . ")")'))
 endfunction
 
 function! s:HandleEvent(en) abort

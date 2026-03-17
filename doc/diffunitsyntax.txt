@@ -1,9 +1,9 @@
 *diffunitsyntax.txt* Highlight word or character based diff units in diff format
 
-Last Change: 2025/07/15
-Version:     3.1
+Last Change: 2026/03/17
+Version:     3.2
 Author:      Rick Howe (Takumi Ohtani) <rdcxy754@ybb.ne.jp>
-Copyright:   (c) 2024-2025 Rick Howe
+Copyright:   (c) 2024-2026 Rick Howe
 License:     MIT
 
 -----------------------------------------------------------------------------
@@ -52,7 +52,7 @@ In addition to those standard diff formats, this plugin identifies a file
 including `git conflict markers` and `diff indicators ('-'/'+' and '<'/'>')`,
 and then shows the diff units.
 
-Diff unit highlighting on plugins
+Diff unit highlighting on other plugins
 
 In some popular git-related plugins, to show 'git diff' output and to preview
 a diff hunk in normal, preview, and popup/floating windows, another
@@ -62,12 +62,12 @@ show actual differences on them, based on the |DiffUnitSyntax| buffer-local or
 global variable, on the following plugins (you are welcome to introduce more
 plugins to cover!):
 
-In normal window:
+In normal window (when |DiffUnitSyntax| is set to 1):
 |vim-fugitive|
 |neogit.nvim|
 |vim-gin|
 
-In preview and popup/floating windows:
+In preview and popup/floating windows (when |DiffUnitSyntax| is set to 2):
 |gitsigns.nvim|
 |vim-gitgutter|
 |vim-siginify|
@@ -98,13 +98,17 @@ OPTIONS                                                *diffunitsyntax-options*
 -----------------------------------------------------------------------------
 CHANGE HISTORY                                         *diffunitsyntax-history*
 
+Version : 3.2
+* Fixed to ignore a warning message, such as "No newline at end of file", in
+  diff format.
+
 Version : 3.1
 * Improved to follow "linematch" and compare between most similar lines if
-  specified in the 'diffopt' option (available on nvim 0.9.0 and later)
+  specified in the 'diffopt' option (available on nvim 0.9.0 and later).
 
 Version : 3.0
 * Made it possible to apply diff unit highlighting on several git-related
-  plugins, based on the |DiffUnitSyntax| variable
+  plugins, based on the |DiffUnitSyntax| variable.
 
 Version : 2.0
 * Added to identify a file including diff indicators as one of diff formats.

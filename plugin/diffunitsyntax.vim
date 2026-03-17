@@ -1,16 +1,16 @@
 " diffunitsyntax: Highlight word or character based diff units in diff format
 "
-" Last Change: 2025/07/15
-" Version:     3.1
+" Last Change: 2026/03/17
+" Version:     3.2
 " Author:      Rick Howe (Takumi Ohtani) <rdcxy754@ybb.ne.jp>
-" Copyright:   (c) 2024-2025 Rick Howe
+" Copyright:   (c) 2024-2026 Rick Howe
 " License:     MIT
 
 if exists('g:loaded_diffunitsyntax') ||
                         \(!has('nvim') ? v:version < 900 : !has('nvim-0.5.0'))
   finish
 endif
-let g:loaded_diffunitsyntax = 3.1
+let g:loaded_diffunitsyntax = 3.2
 
 let s:save_cpo = &cpoptions
 set cpo&vim
@@ -20,7 +20,7 @@ let s:dus = 'diffunitsyntax'
 function! s:CheckSyntax(ev) abort
   let fn = ''
   if a:ev == 0      " Syntax
-    "if exists('g:syntax_on')
+    if exists('g:syntax_on')
       let sy = expand('<amatch>')
       if sy == 'diff'                         " diff,gina,gitgutter,signify
         let fn = 'diff'
@@ -33,7 +33,7 @@ function! s:CheckSyntax(ev) abort
       elseif sy =~ '^Neogit*'                 " neogit
         let fn = 'neogit'
       endif
-    "endif
+    endif
   elseif a:ev == 1  " CursorHold
     let fn = 'gitsigns'
   endif
