@@ -1,7 +1,7 @@
 " diffunitsyntax: Highlight word or character based diff units in diff format
 "
-" Last Change: 2026/03/17
-" Version:     3.2
+" Last Change: 2026/07/01
+" Version:     3.3
 " Author:      Rick Howe (Takumi Ohtani) <rdcxy754@ybb.ne.jp>
 " Copyright:   (c) 2024-2026 Rick Howe
 " License:     MIT
@@ -12,7 +12,10 @@ set cpo&vim
 let s:dus = 'diffunitsyntax'
 
 function! diffunitsyntax#DiffUnitSyntax() abort
-  let du = get(b:, 'DiffUnit', get(g:, 'DiffUnit', 'Word1'))
+  "let du = matchstr(&diffopt, 'inline:\zs[^,]\+')
+  "if empty(du)
+    let du = get(b:, 'DiffUnit', get(g:, 'DiffUnit', 'Word1'))
+  "endif
   let dp = getbufvar(bufnr(), s:dus)
   if empty(dp) || dp.u != du || empty(s:dhl) || !s:CheckDiffUnit(dp)
     let dp = s:FindDiffUnitPos(du)
@@ -25,79 +28,90 @@ endfunction
 
 function! s:FindDiffUnitPos(du) abort
   let dp = {}
-  " identify diff format & find a list of corresponding changed lines
-  let [cl, oc] = s:FindChangedLines()
-  if 0 <= oc
-    let op = diffutil#DiffOpt()
-    let dp.u = a:du | let dp.l = [] | let dp.p = {}
-    " follow linematch to align corresponding lines
-    if has_key(op, 'linematch')
-      let [z1, z2] = [[], []]
+  "if a:du != 'none'
+    " identify diff format & find a list of corresponding changed lines
+    let [cl, oc] = s:FindChangedLines()
+    if !empty(cl)
+      let op = diffutil#DiffOpt()
+      let dp.u = a:du | let dp.l = [] | let dp.p = {}
+      " follow linematch to align corresponding lines
+      if has_key(op, 'linematch')
+        let [z1, z2] = [[], []]
+        for cx in range(min([len(cl[1]), len(cl[2])]))
+          let [r1, r2] = [cl[1][cx], cl[2][cx]]
+          if 1 < len(r1) || 1 < len(r2)
+            let [t1, t2] = [[], []]
+            for [tx, rx] in [[t1, r1], [t2, r2]]
+              let tx += map(getline(rx[0], rx[-1]), 'v:val[oc:]')
+            endfor
+            for [i1, c1, i2, c2] in diffutil#DiffFunc(t1, t2, op)
+              if 0 < c1 && 0 < c2
+                for [zx, rx, ix, cx] in [[z1, r1, i1, c1], [z2, r2, i2, c2]]
+                  let zx += [rx[ix : ix + cx - 1]]
+                endfor
+              endif
+            endfor
+          else
+            let [z1, z2] += [[r1], [r2]]
+          endif
+        endfor
+        let [cl[1], cl[2]] = [z1, z2]
+        unlet op['linematch']
+      endif
+      " set a pair of diff line
+      let dl = []
       for cx in range(min([len(cl[1]), len(cl[2])]))
-        let [r1, r2] = [cl[1][cx], cl[2][cx]]
-        if 1 < len(r1) || 1 < len(r2)
-          let [t1, t2] = [[], []]
-          for [tx, rx] in [[t1, r1], [t2, r2]]
-            let tx += map(getline(rx[0], rx[-1]), 'v:val[oc:]')
-          endfor
-          for [i1, n1, i2, n2] in diffutil#DiffFunc(t1, t2, op)
-            if 0 < n1 && 0 < n2
-              for [zx, rx, ix, nx] in [[z1, r1, i1, n1], [z2, r2, i2, n2]]
-                let zx += [rx[ix : ix + nx - 1]]
-              endfor
+        let [c1, c2] = [cl[1][cx], cl[2][cx]]
+        for ix in range(min([len(c1), len(c2)]))
+          let dl += [[c1[ix], c2[ix]]]
+        endfor
+      endfor
+      " get a type of diff unit
+      let up = (a:du == 'Word1') ? '\%(\w\+\|\W\)\zs' :
+              \(a:du == 'Word2' || a:du ==# 'WORD') ? '\%(\s\+\|\S\+\)\zs' :
+              \(a:du == 'Word3' || a:du ==# 'word') ? '\<\|\>' : '\zs'
+      " compare line and find line/column/count for each unit
+      for [l1, l2] in dl
+        let dp.l += [l1, l2]
+        let pv = #{c: (0 < oc) ? [[l1, 1, 1], [l2, 1, 1]] : [], a: [], d: []}
+        let [u1, u2] =
+                  \[split(getline(l1)[oc:], up), split(getline(l2)[oc:], up)]
+        let ic = diffutil#DiffFunc(u1, u2, op)
+        "if a:du == 'simple' && 1 < len(ic)
+          "let ic = [[ic[0][0], ic[-1][0] + ic[-1][1] - ic[0][0],
+                                "\ic[0][2], ic[-1][2] + ic[-1][3] - ic[0][2]]]
+        "endif
+        for [i1, c1, i2, c2] in ic
+          let hx = (0 < c1 && 0 < c2) ? 'c' : 'a'
+          for [ux, lx, ix, cx] in [[u1, l1, i1, c1], [u2, l2, i2, c2]]
+            let zl = (0 < ix) ? len(join(ux[: ix - 1], '')) : 0
+            if 0 < cx
+              let pv[hx] += [[lx, oc + zl + 1,
+                                        \len(join(ux[ix : ix + cx - 1], ''))]]
+            else
+              let el = (0 < ix) ? len(matchstr(ux[ix - 1], '.$')) : 0
+              let sl = (ix < len(ux)) ? len(matchstr(ux[ix], '^.')) : 0
+              let pv.d += [[lx, oc + zl - el + 1, el + sl]]
             endif
           endfor
-        else
-          let [z1, z2] += [[r1], [r2]]
-        endif
-      endfor
-      let [cl[1], cl[2]] = [z1, z2]
-    endif
-    " set a pair of diff line
-    let dl = []
-    for cx in range(min([len(cl[1]), len(cl[2])]))
-      let [c1, c2] = [cl[1][cx], cl[2][cx]]
-      for ix in range(min([len(c1), len(c2)]))
-        let dl += [[c1[ix], c2[ix]]]
-      endfor
-    endfor
-    " get a type of diff unit
-    let up = (a:du == 'Char') ? '\zs' :
-        \(a:du == 'Word2' || a:du ==# 'WORD') ? '\%(\s\+\|\S\+\)\zs' :
-        \(a:du == 'Word3' || a:du ==# 'word') ? '\<\|\>' : '\%(\w\+\|\W\)\zs'
-    " compare line and find line/column/count for each unit
-    for [l1, l2] in dl
-      let dp.l += [l1, l2]
-      let pv = #{c: (0 < oc) ? [[l1, 1, 1], [l2, 1, 1]] : [], a: [], d: []}
-      let [u1, u2] =
-                  \[split(getline(l1)[oc:], up), split(getline(l2)[oc:], up)]
-      for [i1, n1, i2, n2] in diffutil#DiffFunc(u1, u2, op)
-        let hx = (0 < n1 && 0 < n2) ? 'c' : 'a'
-        for [ux, lx, ix, nx] in [[u1, l1, i1, n1], [u2, l2, i2, n2]]
-          let zl = (0 < ix) ? len(join(ux[: ix - 1], '')) : 0
-          if 0 < nx
-            let pv[hx] += [[lx, oc + zl + 1,
-                                        \len(join(ux[ix : ix + nx - 1], ''))]]
-          else
-            let el = (0 < ix) ? len(matchstr(ux[ix - 1], '.$')) : 0
-            let sl = (ix < len(ux)) ? len(matchstr(ux[ix], '^.')) : 0
-            let pv.d += [[lx, oc + zl - el + 1, el + sl]]
+        endfor
+        for hx in keys(pv)
+          if !empty(pv[hx])
+            let dp.p[hx] = (has_key(dp.p, hx) ? dp.p[hx] : []) + [pv[hx]]
           endif
         endfor
       endfor
-      for hx in keys(pv)
-        if !empty(pv[hx])
-          let dp.p[hx] = (has_key(dp.p, hx) ? dp.p[hx] : []) + [pv[hx]]
-        endif
-      endfor
-    endfor
-  endif
+    endif
+  "endif
   return dp
 endfunction
 
 function! s:ShowDiffUnit(dp) abort
-  " link highlight and set syntax for each unit
   if empty(a:dp) || empty(a:dp.p) | return | endif
+  " get a 'containedin' syntax shown in the line
+  let ct = {}
+  for l in a:dp.l | let ct[l] = synIDattr(synID(l, 1, 1), 'name') | endfor
+  " set highlight and position for each unit
   let hp = []
   for hx in ['d', 'a', 'c']     " 'd' first not to overwrite 'a' and 'c'
     if has_key(s:dhl, hx)
@@ -106,46 +120,98 @@ function! s:ShowDiffUnit(dp) abort
                                                           \len(s:dhl[hx]) : 1
       if has_key(a:dp.p, hx)
         for ix in range(len(a:dp.p[hx]))
-          let hl = s:dhl[hx][ix % hn]
-          let hq[hl] = (has_key(hq, hl) ? hq[hl] : []) + a:dp.p[hx][ix]
+          for [l, c, b] in a:dp.p[hx][ix]
+            let hl = s:dhl[hx][(hx != 'd') ? ix % hn :
+                                            \!empty(ct[l]) ? ct[l] : 'Normal']
+            let hq[hl] = (has_key(hq, hl) ? hq[hl] : []) + [[l, c, b]]
+          endfor
         endfor
       endif
       let hp += items(hq)
     endif
   endfor
-  let ln = a:dp.l[0]
-  if empty(!has('nvim') ? prop_list(ln) :
-                                        \filter(values(nvim_get_namespaces()),
-                                      \'!empty(nvim_buf_get_extmarks(0, v:val,
-                                          \[ln - 1, 0], [ln - 1, -1], {}))'))
-    " syntax highlighting
+  " delete (1)inline and (2)bg/attr-enabled textprop/extmark/match hl on dp.l,
+  " when diff syntax is not applied, add (2) back as diff syntax hl
+  let ds = exists('b:current_syntax') && b:current_syntax == 'diff' ||
+          \execute('syntax list diffAdded', 'silent!') =~? 'diffAdded.*match'
+  if !has('nvim')
+    for ln in a:dp.l
+      for pr in prop_list(ln)
+        if pr.type !~? s:dus
+          let pt = prop_type_get(pr.type)
+          let pt.highlight = s:FindDiffSyntax(pt.highlight)
+          if !empty(pt.highlight)
+            call prop_remove(#{id: pr.id, type: pr.type}, pr.lnum)
+            if !ds && 0 < hlID(pt.highlight)
+              if empty(prop_type_get(pt.highlight))
+                call prop_type_add(pt.highlight, pt)
+              endif
+              call prop_add(pr.lnum, pr.col, #{id: pr.id, type: pt.highlight})
+            endif
+          endif
+        endif
+      endfor
+    endfor
+  else
+    for [ns, ni] in items(nvim_get_namespaces())
+      if ns != s:dus
+        for ln in a:dp.l
+          for [i, r, c, d] in nvim_buf_get_extmarks(0, ni, [ln - 1, 0],
+                                                \[ln - 1, -1], #{details: 1})
+            if has_key(d, 'hl_group')
+              let d.hl_group = s:FindDiffSyntax(d.hl_group)
+              if !empty(d.hl_group)
+                call nvim_buf_del_extmark(0, ni, i)
+                if !ds && 0 < hlID(d.hl_group)
+                  if has_key(d, 'ns_id') | unlet d.ns_id | endif
+                  let d.id = i
+                  call nvim_buf_set_extmark(0, ni, r, c, d)
+                endif
+              endif
+            endif
+          endfor
+        endfor
+      endif
+    endfor
+  endif
+  for ma in getmatches()
+    if ma.group !~? s:dus && (ds || !empty(s:FindDiffSyntax(ma.group)))
+      for pv in values(filter(copy(ma), 'v:key =~? "^pos"'))
+        if index(a:dp.l, pv[0]) != -1
+          call matchdelete(ma.id)
+          break
+        endif
+      endfor
+    endif
+  endfor
+  " show diff unit highlighting
+  if ds
     let id = 1
     while 1
       let hl = synIDattr(id, 'name')
       if empty(hl) | break | endif
-      if hl =~ s:dus | call execute('syntax clear ' . hl) | endif
+      if hl =~? s:dus | call execute('syntax clear ' . hl) | endif
       let id += 1
     endwhile
-    let ct = {}
-    for ln in a:dp.l | let ct[ln] = empty(synstack(ln, 1)) | endfor
     for [hl, lc] in hp
       if !empty(lc)
-        let hz = s:dus . hl
-        call execute('highlight default link ' . hz . ' ' . hl)
+        if hl !~? s:dus
+          call execute('highlight link ' . (s:dus . hl) . ' ' . hl)
+          let hl = s:dus . hl
+        endif
         for [l, c, b] in lc
-          call execute('syntax match ' . hz . ' /\%' . l . 'l\%>' . (c - 1) .
-                \'c.\%<' . (c + b + 1) . 'c/' . (ct[l] ? '' : ' contained') .
-                            \' containedin=diffAdded,diffRemoved,diffChanged')
+          call execute('syntax match ' . hl .
+                          \' /\%' . l . 'l\%' . c . 'c.*\%' . (c + b) . 'c/' .
+                    \(!empty(ct[l]) ? ' contained containedin=' . ct[l] : ''))
         endfor
       endif
     endfor
   else
     if !has('nvim')
-      " textprop highlighting
       let pz = -1
       for ln in a:dp.l
         for pr in prop_list(ln)
-          if pr.type =~ s:dus
+          if pr.type =~? s:dus
             call prop_remove(#{type: pr.type}, ln)
           else
             let pz = max([pz, prop_type_get(pr.type).priority])
@@ -154,7 +220,7 @@ function! s:ShowDiffUnit(dp) abort
       endfor
       for [hl, lc] in hp
         if !empty(lc)
-          let pt = s:dus . hl
+          let pt = (hl =~? s:dus) ? hl : s:dus . hl
           if empty(prop_type_get(pt))
             call prop_type_add(pt, #{highlight: hl, priority: pz + 1})
           endif
@@ -164,7 +230,6 @@ function! s:ShowDiffUnit(dp) abort
         endif
       endfor
     else
-      " extmark highlighting
       let ns = nvim_create_namespace(s:dus)
       call nvim_buf_clear_namespace(0, ns, 0, -1)
       for [hl, lc] in hp
@@ -188,10 +253,9 @@ function! s:CheckDiffUnit(dp) abort
       for [l, c, b] in po[0]
         if line('$') < l || col([l, '$']) - 1 < c + b - 1 | return 0 | endif
         if empty(filter(map(synstack(l, c), 'synIDattr(v:val, "name")'),
-                                                        \'v:val =~ s:dus')) &&
-          \(!has('nvim') ?
-            \empty(filter(prop_list(l), 'v:val.type =~ s:dus')) :
-            \empty(nvim_buf_get_extmarks(0, ns, [l - 1, 0], [l - 1, -1], {})))
+                                                      \'v:val =~? s:dus')) &&
+          \empty(!has('nvim') ? filter(prop_list(l), 'v:val.type =~? s:dus') :
+                  \nvim_buf_get_extmarks(0, ns, [l - 1, 0], [l - 1, -1], {}))
           return 0
         endif
       endfor
@@ -201,7 +265,7 @@ function! s:CheckDiffUnit(dp) abort
 endfunction
 
 function! s:FindChangedLines() abort
-  let cl = #{1: [[]], 2: [[]]}
+  let cl = {}
   for [df, pt, oc] in [
     \['unified', '^@@ -\d\+\(,\d\+\)\= +\d\+\(,\d\+\)\= @@', 1],
     \['context', '^\*\{15}.*\n\*\{3} \(.*\n\)\{-1,}-\{3} \(.*\n\)\{-1,}', 2],
@@ -209,6 +273,7 @@ function! s:FindChangedLines() abort
     \['gitconflict', '^<\{7}\(.*\n\)\+=\{7}\(.*\n\)\+>\{7}\(.*\n\)\+', 0],
     \['diffindicator', '\(^[-<].*\n\)\+\(^[+>].*\n\)\+', 1]]
     if 0 < search(pt, 'nw', '', 100)
+      for ix in [1, 2] | let cl[ix] = [[]] | endfor
       if df == 'unified'
         for ln in range(1, line('$'))
           let tx = getline(ln)
@@ -268,8 +333,6 @@ function! s:FindChangedLines() abort
         endif
       endfor
       break
-    else
-      let oc = -1
     endif
   endfor
   return [cl, oc]
@@ -280,36 +343,72 @@ let s:dhl = {}
 function! s:SetDiffHighlight() abort
   " set a list of highlights for diff units
   if !empty(s:dhl) | return | endif
-  let dh = #{c: ['DiffChange'], a: ['DiffAdd'], d: ['DiffDelPos']}
+  let dh = {}
+  " for added unit
+  let dh.a = ['DiffAdd']
+  " for changed unit, select hl in which bg and no attr are defined
+  let dh.c = ['DiffChange']
   let bx = map(dh.c + dh.a, 'synIDattr(hlID(v:val), "bg#")')
-  let hl = s:dus . 'Normal'
   for fb in ['fg', 'bg']
-    for cg in ['cterm', 'gui']
-      call execute('highlight ' . hl . ' ' . cg . fb . '=' . fb, 'silent!')
-    endfor
-    let nn = synIDattr(hlID(hl), fb . '#')
+    let nn = synIDattr(hlID('Normal'), fb . '#')
     if !empty(nn) | let bx += [nn] | endif
   endfor
-  call execute('highlight clear ' . hl)
   let id = 1
   while 1
     let hl = synIDattr(id, 'name')
     if empty(hl) | break | endif
-    if id == synIDtrans(id)
+    if hl !~? s:dus && id == synIDtrans(id)
       let bg = synIDattr(id, 'bg#')
-      if !empty(bg) && index(bx, bg) == -1 &&
-          \empty(filter(['bold', 'underline', 'undercurl', 'strikethrough',
-                                \'reverse', 'inverse', 'italic', 'standout'],
-                                            \'!empty(synIDattr(id, v:val))'))
+      if !empty(bg) && index(bx, bg) == -1 && empty(filter(['bold', 'italic',
+                  \'reverse', 'inverse', 'standout', 'underline', 'undercurl',
+                          \'strikethrough'], '!empty(synIDattr(id, v:val))'))
         let dh.c += [hl] | let bx += [bg]
       endif
     endif
     let id += 1
   endwhile
-  for cg in ['cterm', 'gui']
-    call execute('highlight ' . dh.d[0] . ' ' . cg . '=underline', 'silent!')
+  " for deleted unit, add bold/underline to diff syntax hl and define them
+  let dh.d = {}
+  for hl in ['Normal', 'diffAdded', 'diffRemoved', 'diffChanged']
+    let id = synIDtrans(hlID(hl))
+    if 0 < id
+      let zz = []
+      for cg in ['cterm', 'gui']
+        let zz += [cg . '=bold,underline']
+        if hl != 'Normal'
+          for fb in ['fg', 'bg']
+            let nn = synIDattr(id, fb, cg)
+            if !empty(nn) | let zz += [cg . fb . '=' . nn] | endif
+          endfor
+        endif
+      endfor
+      let dh.d[hl] = s:dus . synIDattr(id, 'name')
+      call execute('highlight ' . dh.d[hl] . ' ' . join(zz), 'silent!')
+    else
+      let dh.d[hl] = dh.d['Normal']
+    endif
   endfor
   let s:dhl = dh
+endfunction
+
+function! s:FindDiffSyntax(hl) abort
+  " find an alternate diff syntax hl, '?': not found, '': n/a
+  let da = (a:hl =~? 'add') ? ['Added', 'Identifier'] :
+            \(a:hl =~? 'delete') ? ['Removed', 'Special'] :
+            \(a:hl =~? 'change') ? ['Changed', 'Preproc'] : []
+  if !empty(da) && a:hl =~? 'inline\|intraline'
+    " inline hl
+    let ds = '?'
+  elseif !empty(filter(['bg', 'bold', 'italic', 'reverse', 'inverse',
+                      \'standout', 'underline', 'undercurl', 'strikethrough'],
+                        \'!empty(synIDattr(synIDtrans(hlID(a:hl)), v:val))'))
+    " bg/attr-enabled hl
+    let ds = '?'
+    if !empty(filter(da, '0 < hlID(v:val)')) | let ds = da[0] | endif
+  else
+    let ds = ''
+  endif
+  return ds
 endfunction
 
 let s:dev = ['ColorScheme', 'OptionSet', 'TextChanged', 'BufDelete']
@@ -374,10 +473,7 @@ function! s:diff(bn, lv, ...) abort
                                       \!empty(bi.windows) ? bi.windows[0] : -1
     if wn != -1
       if empty(win_gettype(wn)) || 2 <= a:lv
-        call s:TriggerDiffUnit(wn)
-        if !empty(win_gettype(wn))
-          call s:HideOverlappedHL(wn)
-        endif
+        call win_execute(wn, 'call diffunitsyntax#DiffUnitSyntax()')
       endif
     endif
   endif
@@ -388,85 +484,18 @@ function! s:gitsigns(bn, lv, ...) abort
     for wn in ti.windows
       if !empty(getwinvar(wn, 'gitsigns_preview')) &&
                                         \!empty(win_gettype(wn)) && 2 <= a:lv
-        call s:TriggerDiffUnit(wn)
-        call s:HideOverlappedHL(wn)
+        call win_execute(wn, 'call diffunitsyntax#DiffUnitSyntax()')
       endif
     endfor
   endfor
 endfunction
 
 function! s:neogit(bn, lv, ...) abort
-  if bufname(a:bn) =~# '^Neogit'
+  if bufname(a:bn) =~? '^Neogit'
     let wn = bufwinid(a:bn)
     if wn != -1
-      call s:TriggerDiffUnit(wn)
-      " WA: hide with clean 'Normal' to keep diff unit highlighting visible
-      " line_hl_group will overlap hl_group even with higher priority
-      let dp = getbufvar(a:bn, s:dus, {})
-      if !empty(dp) && !empty(dp.l)
-        let hl = s:dus . 'Normal'
-        call execute('highlight clear ' . hl)
-        let ns = nvim_create_namespace(s:dus)
-        for ln in dp.l
-          call nvim_buf_set_extmark(a:bn, ns, ln - 1, 0, #{line_hl_group: hl})
-        endfor
-      endif
+      call win_execute(wn, 'call diffunitsyntax#DiffUnitSyntax()')
     endif
-  endif
-endfunction
-
-function! s:TriggerDiffUnit(wn) abort
-  call win_execute(a:wn, 'call diffunitsyntax#DiffUnitSyntax()')
-endfunction
-
-function! s:HideOverlappedHL(wn) abort
-  " change 'add/delete' HL to clean 'Normal' if overlapped on diff unit lines
-  let bn = winbufnr(a:wn)
-  let dp = getbufvar(bn, s:dus, {})
-  if !empty(dp) && !empty(dp.l)
-    let hl = s:dus . 'Normal'
-    call execute('highlight clear ' . hl)
-    if has('nvim')
-      for [ns, ni] in items(nvim_get_namespaces())
-        if ns != s:dus
-          for ln in dp.l
-            for [i, r, c, d] in nvim_buf_get_extmarks(bn, ni, [ln - 1, 0],
-                                                \[ln - 1, -1], #{details: 1})
-              if (0 < c || 0 < d.end_col) && d.hl_group =~? 'add\|delete'
-                call nvim_buf_del_extmark(bn, ni, i)
-                let d.id = i | let d.hl_group = hl
-                if has_key(d, 'ns_id') | unlet d.ns_id | endif
-                if !has('nvim-0.6.1') | unlet d.end_row | endif
-                call nvim_buf_set_extmark(bn, ni, r, c, d)
-              endif
-            endfor
-          endfor
-        endif
-      endfor
-    "else
-      "if empty(prop_type_get(hl))
-        "call prop_type_add(hl, #{highlight: hl})
-      "endif
-      "for ln in dp.l
-        "for pr in prop_list(ln, #{bufnr: bn})
-          "if pr.type !~ s:dus
-            "call prop_remove(#{bufnr: bn, type: pr.type}, ln)
-            "call prop_add(ln, pr.col, #{bufnr: bn, type: hl, id: pr.id,
-                                                        "\length: pr.length})
-          "endif
-        "endfor
-      "endfor
-    endif
-    for ma in getmatches(a:wn)
-      let po = values(filter(copy(ma), 'v:key =~ "^pos"'))
-      for pv in po
-        if index(dp.l, pv[0]) != -1 && ma.group =~? 'add\|delete'
-          call matchdelete(ma.id, a:wn)
-          call matchaddpos(hl, po, ma.priority, ma.id, #{window: a:wn})
-          break
-        endif
-      endfor
-    endfor
   endif
 endfunction
 

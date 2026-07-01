@@ -1,7 +1,7 @@
 *diffunitsyntax.txt* Highlight word or character based diff units in diff format
 
-Last Change: 2026/03/17
-Version:     3.2
+Last Change: 2026/07/01
+Version:     3.3
 Author:      Rick Howe (Takumi Ohtani) <rdcxy754@ybb.ne.jp>
 Copyright:   (c) 2024-2026 Rick Howe
 License:     MIT
@@ -12,7 +12,7 @@ INTRODUCTION                                           *diffunitsyntax*
 This plugin finds and highlights word or character based changed/added/deleted
 diff units in a diff format, to make it possible to see the actual differences
 within a line. This plugin not only works as an additional vim syntax for diff
-format but also applies the intra-line diff unit highlighting on some popular
+format but also applies the inline diff unit highlighting on some popular
 git-related plugins.
 
 When a file name extension is ".diff" or the 'syntax' option is set to "diff",
@@ -57,14 +57,15 @@ Diff unit highlighting on other plugins
 In some popular git-related plugins, to show 'git diff' output and to preview
 a diff hunk in normal, preview, and popup/floating windows, another
 highlighting mechanism such as text property or extended mark is used instead
-of diff syntax. This plugin applies the intra-line diff unit highlighting and
-show actual differences on them, based on the |DiffUnitSyntax| buffer-local or
+of diff syntax. This plugin applies the inline diff unit highlighting and show
+actual differences on them, based on the |DiffUnitSyntax| buffer-local or
 global variable, on the following plugins (you are welcome to introduce more
-plugins to cover!):
+plugins to suport!):
 
 In normal window (when |DiffUnitSyntax| is set to 1):
 |vim-fugitive|
 |neogit.nvim|
+|mini.git|
 |vim-gin|
 
 In preview and popup/floating windows (when |DiffUnitSyntax| is set to 2):
@@ -97,6 +98,11 @@ OPTIONS                                                *diffunitsyntax-options*
 
 -----------------------------------------------------------------------------
 CHANGE HISTORY                                         *diffunitsyntax-history*
+
+Version : 3.3
+* Updated to highlight a position of the deleted diff units in the same
+  foreground and background colors behind with bold and underline, on the
+  changed lines.
 
 Version : 3.2
 * Fixed to ignore a warning message, such as "No newline at end of file", in

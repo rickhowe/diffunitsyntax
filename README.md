@@ -5,7 +5,7 @@
 This plugin finds and highlights word or character based changed/added/deleted
 diff units in a diff format, to make it possible to see the actual differences
 within a line. This plugin not only works as an additional vim syntax for diff
-format but also applies the intra-line diff unit highlighting on some popular
+format but also applies the inline diff unit highlighting on some popular
 git-related plugins.
 
 When a file name extension is `.diff` or the `syntax` option is set to `diff`,
@@ -49,10 +49,10 @@ and then shows the diff units.
 In some popular git-related plugins, to show `git diff` output and to preview
 a diff hunk in normal, preview, and popup/floating windows, another
 highlighting mechanism such as text property or extended mark is used instead
-of diff syntax. This plugin applies the intra-line diff unit highlighting and
-show actual differences on them, based on the `DiffUnitSyntax` buffer-local or
+of diff syntax. This plugin applies the inline diff unit highlighting and show
+actual differences on them, based on the `DiffUnitSyntax` buffer-local or
 global variable, on the following plugins (you are welcome to introduce more
-plugins to cover!):
+plugins to support!):
 
 In normal window (when `DiffUnitSyntax` is set to 1):
 <details>
@@ -70,6 +70,14 @@ neogit
 </summary>
 
 ![neogit](images/neogit.png)
+</details>
+<details>
+<summary>
+mini.git
+<a href="https://github.com/nvim-mini/mini-git">></a>
+</summary>
+
+![minigit](images/minigit.png)
 </details>
 <details>
 <summary>

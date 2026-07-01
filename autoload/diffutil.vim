@@ -1,15 +1,13 @@
 " diffunitsyntax: Highlight word or character based diff units in diff format
 "
-" Last Change: 2025/07/15
-" Version:     3.1
+" Last Change: 2026/07/01
+" Version:     3.3
 " Author:      Rick Howe (Takumi Ohtani) <rdcxy754@ybb.ne.jp>
-" Copyright:   (c) 2024-2025 Rick Howe
+" Copyright:   (c) 2024-2026 Rick Howe
 " License:     MIT
 
 let s:save_cpo = &cpoptions
 set cpo&vim
-
-let s:IndexCount = 1
 
 function! diffutil#DiffOpt() abort
   let op = #{}
@@ -40,10 +38,14 @@ function! diffutil#DiffOpt() abort
   return op
 endfunction
 
+"let s:idxcnt = 1        " index count or shortest edit script
+
 if get(g:, 'BuiltinDiffFunc', 1) &&
                       \(has('nvim') ? type(luaeval('vim.diff')) == v:t_func :
                                     \exists('*diff') && has('patch-9.1.0099'))
-
+" ===========================
+" builtin diff function
+" ===========================
 function! diffutil#DiffFunc(u1, u2, op) abort
   let [n1, n2] = [len(a:u1), len(a:u2)]
   if a:u1 ==# a:u2 | let ic = []
@@ -51,23 +53,24 @@ function! diffutil#DiffFunc(u1, u2, op) abort
   elseif n2 == 0 | let ic = [[0, n1, 0, 0]]
   else | let ic = s:BuiltinDiff(a:u1, a:u2, a:op)
   endif
-  if s:IndexCount
+  "if s:idxcnt
     return ic
-  else
-    let es = ''
-    let p1 = 0
-    for [i1, c1, i2, c2] in ic + [[n1, 0, 0, 0]]
-      let es .= repeat('=', i1 - p1) . repeat('-', c1) . repeat('+', c2)
-      let p1 = i1 + c1
-    endfor
-    return es
-  endif
+  "else
+    "let es = ''
+    "let p1 = 0
+    "for [i1, c1, i2, c2] in ic + [[n1, 0, 0, 0]]
+      "let es .= repeat('=', i1 - p1) . repeat('-', c1) . repeat('+', c2)
+      "let p1 = i1 + c1
+    "endfor
+    "return es
+  "endif
 endfunction
 
 if has('nvim')
 function! s:BuiltinDiff(u1, u2, op) abort
   let op = copy(a:op)
-  let [l1, l2] = [join(a:u1, "\n") . "\n", join(a:u2, "\n") . "\n"]
+  let [l1, l2] = [empty(a:u1) ? '' : join(a:u1, "\n") . "\n",
+                                  \empty(a:u2) ? '' : join(a:u2, "\n") . "\n"]
   if has_key(op, 'icase')
     let [l1, l2] = [tolower(l1), tolower(l2)]
     unlet op['icase']
@@ -86,8 +89,10 @@ function! s:BuiltinDiff(u1, u2, op) abort
 endfunction
 endif
 
-else    " buitin or plugin
-
+else
+" ===========================
+" plugin diff function
+" ===========================
 function! diffutil#DiffFunc(u1, u2, op) abort
   let [u1, u2] = [copy(a:u1), copy(a:u2)]
   for uu in [u1, u2]
@@ -105,7 +110,7 @@ function! diffutil#DiffFunc(u1, u2, op) abort
   endfor
   let es = s:PluginDiff(u1, u2,
               \has_key(a:op, 'indent-heuristic') && a:op['indent-heuristic'])
-  if s:IndexCount
+  "if s:idxcnt
     let ic = []
     let [i1, i2] = [0, 0]
     for ed in split(es, '[-+]\+\zs', 1)[: -2]
@@ -115,13 +120,15 @@ function! diffutil#DiffFunc(u1, u2, op) abort
       let [i1, i2] += [c1, c2]
     endfor
     return ic
-  else
-    return es
-  endif
+  "else
+    "return es
+  "endif
 endfunction
 
-if has('vim9script')
-
+if has('vim9script') && get(g:, 'vim9script', 1)
+" ---------------------------
+" vim9script
+" ---------------------------
 function! s:Vim9PluginDiff() abort
 def! s:PluginDiff(u1: list<string>, u2: list<string>, ih: bool): string
   const [eq, n1, n2] = ['=', len(u1), len(u2)]
@@ -138,7 +145,7 @@ def! s:PluginDiff(u1: list<string>, u2: list<string>, ih: bool): string
   var p = -1
   while fp[D] != N
     p += 1
-    var epk = repeat([[]], p * 2 + D + 1)
+    var epk: list<list<any>> = repeat([[]], p * 2 + D + 1)
     for k in range(-p, D - 1, 1) + range(D + p, D, -1)
       var x: number | var y: number
       [y, epk[k]] = (fp[k - 1] + 1 > fp[k + 1]) ?
@@ -189,8 +196,10 @@ enddef
 endfunction
 call s:Vim9PluginDiff()
 
-else    " vim9script or vim8script
-
+else
+" ---------------------------
+" vim8script
+" ---------------------------
 function! s:PluginDiff(u1, u2, ih) abort
   " An O(NP) Sequence Comparison Algorithm
   let [u1, u2, eq, e1, e2] = [a:u1, a:u2, '=', '-', '+']
@@ -253,10 +262,8 @@ function! s:ReduceDiffHunk(u1, u2, ses) abort
   let ses = ez . ses
   return ses
 endfunction
-
-endif    " vim9script or vim8script
-
-endif    " buitin or plugin
+endif
+endif
 
 let &cpoptions = s:save_cpo
 unlet s:save_cpo
